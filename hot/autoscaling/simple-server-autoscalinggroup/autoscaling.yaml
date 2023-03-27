@@ -1,0 +1,83 @@
+heat_template_version: 2018-08-31
+
+description: |
+  The heat template is used to demo an autoscaling group.
+parameters:
+  webserver_keypair:
+    type: string
+    default: KEYPAIR_NAME
+  webserver_image_id:
+    description: changed to use ubuntu 22.04.
+    type: string
+    default: e126316b-f93c-4598-84e6-7410ff55d324 # 22.04
+    #default: 0f995296-d6de-4f56-b5a1-e0bf090e7c6a # 20.04
+  webserver_flavor_id:
+    type: string
+    default: c1.c1r1
+  webserver_network_id:
+    type: string
+    default: 2eb67c38-60c1-465a-9228-1361be13933d
+  vip_subnet_id:
+    description: Should be a subnet of webserver_network_id
+    type: string
+    default: c0481470-84ee-4acd-8615-a6388e82484c
+  webserver_public_network:
+    description: Public network name, can obtain with 'openstack network list --external'
+    type: string
+    default: public-net
+
+resources:
+  security_group:
+    type: OS::Neutron::SecurityGroup
+    properties:
+      rules: [
+        {protocol: "tcp", "port_range_min": 80, "port_range_max": 80},
+        {protocol: "tcp", "port_range_min": 22, "port_range_max": 22},
+      ]
+  autoscaling_group:
+    type: OS::Heat::AutoScalingGroup
+    properties:
+      min_size: 1
+      max_size: 5
+      desired_capacity: 2
+      rolling_updates:
+        min_in_service: 1 # The minimum number of resources in service while rolling updates are being executed.
+        max_batch_size: 1 # The maximum number of resources to replace at once.
+        #pause_time: 0  # The number of seconds to wait between batches of updates.
+      resource:
+        type: CC::Scaling::Server
+        properties:
+          name: {get_param: webserver_name}
+          keypair: {get_param: webserver_keypair}
+          flavor_id: {get_param: webserver_flavor_id}
+          image_id : {get_param: webserver_image_id}
+          network_id: {get_param: webserver_network_id}
+          sg_ids: [{get_resource: security_group}]
+          public_network: {get_param: webserver_public_network}
+  scaleup_policy:
+    type: OS::Heat::ScalingPolicy
+    properties:
+      adjustment_type: change_in_capacity
+      auto_scaling_group_id: {get_resource: autoscaling_group}
+      scaling_adjustment: 1
+      cooldown: 60
+  scaledown_policy:
+    type: OS::Heat::ScalingPolicy
+    properties:
+      adjustment_type: change_in_capacity
+      auto_scaling_group_id: {get_resource: autoscaling_group}
+      scaling_adjustment: -1
+      cooldown: 60
+outputs:
+  scale_up_alarmurl:
+    description: "Alarm URL for scale up"
+    value: {get_attr: [scaleup_policy, alarm_url]}
+  scale_down_alarmurl:
+    description: "Alarm URL for scale down"
+    value: {get_attr: [scaledown_policy, alarm_url]}
+  scale_up_webhook:
+    description: "Webhook to trigger scale up"
+    value: {get_attr: [scaleup_policy, signal_url]}
+  scale_down_webhook:
+    description: "Webhook to trigger scale down"
+    value: {get_attr: [scaledown_policy, signal_url]}
