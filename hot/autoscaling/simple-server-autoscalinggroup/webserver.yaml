@@ -3,18 +3,16 @@ heat_template_version: 2018-08-31
 description: |
   The heat template is used to create a simple server with floating ip.
 parameters:
-  name:
+  key_name:
     type: string
-  keypair:
+  image:
     type: string
-  image_id:
+  flavor:
     type: string
-  flavor_id:
+  network:
     type: string
-  network_id:
-    type: string
-    default: NETWORK-ID # Note(dalees): Requires a default for validation
-  sg_ids:
+    default: network1 # Note(dalees): Requires a default for validation
+  secgroup_ids:
     type: comma_delimited_list
   public_network:
     type: string
@@ -23,12 +21,12 @@ resources:
   server:
     type: OS::Nova::Server
     properties:
-      image: { get_param: image_id }
-      flavor: { get_param: flavor_id }
+      image: { get_param: image }
+      flavor: { get_param: flavor }
       networks:
-        - network: {get_param: network_id}
-      key_name: {get_param: keypair}
-      security_groups: {get_param: sg_ids}
+        - network: {get_param: network}
+      key_name: {get_param: key_name}
+      security_groups: {get_param: secgroup_ids}
       config_drive: true
       user_data_format: RAW
       user_data: { get_file: user_data.sh }
@@ -36,7 +34,7 @@ resources:
     type: OS::Neutron::FloatingIP
     properties:
       floating_network: {get_param: public_network}
-      port_id: {get_attr: [server, addresses, {get_param: network_id}, 0, port]}
+      port_id: {get_attr: [server, addresses, {get_param: network}, 0, port]}
 
 outputs:
   server_id:
