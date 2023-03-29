@@ -3,7 +3,7 @@
 
 ## Create stack
 
-  $ openstack stack create mystack -t autoscaling.yaml --parameter webserver_keypair=dale
+  $ openstack stack create my-stack -t autoscaling.yaml --parameter webserver_key_name=dale
 
 
 ## Update to new base image
@@ -39,4 +39,4 @@ Finally, using both the token and webhook URL, we can POST to either manually sc
 
 ## Delete created stack
 
-  $ openstack stack delete -y my-stack
+  $ openstack stack delete --wait -y my-stack
